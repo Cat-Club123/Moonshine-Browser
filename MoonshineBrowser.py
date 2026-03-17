@@ -1,4 +1,7 @@
-﻿import os
+import os
+import sys
+import platform
+from pathlib import Path
 
 # --- Chromium / GPU tuning ---
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
@@ -9,7 +12,6 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 )
 os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
 
-import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLineEdit, QToolBar, QAction,
     QTabWidget, QFileDialog
@@ -31,6 +33,17 @@ onkeydown="if(event.key==='Enter'){location='https://duckduckgo.com/?q='+this.va
 </body>
 </html>
 """
+
+
+def get_platform_user_agent():
+    """Generate a platform-appropriate user agent string."""
+    system = platform.system()
+    if system == "Darwin":  # macOS
+        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109 Safari/537.36"
+    elif system == "Linux":
+        return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109 Safari/537.36"
+    else:  # Windows and others
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109 Safari/537.36"
 
 
 class Moonshine(QMainWindow):
@@ -62,10 +75,7 @@ class Moonshine(QMainWindow):
 
         self.profile = QWebEngineProfile.defaultProfile()
         self.profile.downloadRequested.connect(self.handle_download)
-        self.profile.setHttpUserAgent(
-            "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/109 Safari/537.36"
-        )
+        self.profile.setHttpUserAgent(get_platform_user_agent())
         self.profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
 
         self.setStyleSheet("""
@@ -104,7 +114,9 @@ class Moonshine(QMainWindow):
         self.current().setUrl(QUrl(url))
 
     def handle_download(self, item):
-        path, _ = QFileDialog.getSaveFileName(self, "Save File", item.path())
+        """Handle file downloads with cross-platform path support."""
+        default_path = str(Path.home() / "Downloads" / item.path().split("/")[-1])
+        path, _ = QFileDialog.getSaveFileName(self, "Save File", default_path)
         if path:
             item.setPath(path)
             item.accept()
